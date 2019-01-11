@@ -1,7 +1,10 @@
 # How to update and release new client library
 
-Change library version is:
-- `build.sbt`
+Change library version in:
+- src/BeFaster.App/packages.config
+- src/BeFaster.App/BeFaster.App.vbproj
+- src/BeFaster.Runner/packages.config
+- src/BeFaster.Runner/BeFaster.Runner.csproj
 
 Runner version = Client version + Runner patch
 Example:
