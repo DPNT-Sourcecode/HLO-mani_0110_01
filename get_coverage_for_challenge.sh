@@ -8,35 +8,31 @@ set -o pipefail
 SCRIPT_CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CHALLENGE_ID=$1
-COVERAGE_TEST_REPORT_XML_FILE="${SCRIPT_CURRENT_DIR}/coverage.xml"
-PYTHON_CODE_COVERAGE_INFO="${SCRIPT_CURRENT_DIR}/coverage.tdl"
+RUBY_TEST_REPORT_CSV_FILE="${SCRIPT_CURRENT_DIR}/coverage/results.csv"
+RUBY_CODE_COVERAGE_INFO="${SCRIPT_CURRENT_DIR}/coverage.tdl"
 
-# Install dependencies
-pip install -r ${SCRIPT_CURRENT_DIR}/requirements.txt
+( cd ${SCRIPT_CURRENT_DIR} && \
+    bundle install && \
+    bundle exec rake test || true 1>&2 )
 
-# Prepare Python project
-function init_python_modules_in() {
-    _target_dir=$1
-    for dir in `find ${SCRIPT_CURRENT_DIR}/${_target_dir} -type d`; do touch ${dir}/__init__.py; done
-}
-init_python_modules_in lib
-init_python_modules_in test
+[ -e ${RUBY_CODE_COVERAGE_INFO} ] && rm ${RUBY_CODE_COVERAGE_INFO}
 
-# Compute coverage
-( cd ${SCRIPT_CURRENT_DIR} && PYTHONPATH=lib coverage run --source "lib/solutions" -m pytest -s test || true 1>&2 )
-( cd ${SCRIPT_CURRENT_DIR} && coverage xml || true 1>&2 )
+if [ -f "${RUBY_TEST_REPORT_CSV_FILE}" ]; then
+    TOTAL_COVERAGE_PERCENTAGE=$(( 0 ))
+    NUMBER_OF_FILES=$(( 0 ))
 
-[ -e ${PYTHON_CODE_COVERAGE_INFO} ] && rm ${PYTHON_CODE_COVERAGE_INFO}
+    COVERAGE_OUTPUT=$(grep "solutions\/${CHALLENGE_ID}\/" ${RUBY_TEST_REPORT_CSV_FILE} || true)
+    RELEVANT_LINES_COL=4
+    LINES_COVERED_COL=5
 
-# Extract coverage percentage for target challenge
-if [ -f "${COVERAGE_TEST_REPORT_XML_FILE}" ]; then
-    COVERAGE_OUTPUT=$(xmllint --xpath '//package[@name="lib.solutions.'${CHALLENGE_ID}'"]/@line-rate' ${COVERAGE_TEST_REPORT_XML_FILE} || true)
-    PERCENTAGE=$(( 0 ))
     if [[ ! -z "${COVERAGE_OUTPUT}" ]]; then
-        PERCENTAGE=$(echo ${COVERAGE_OUTPUT} | cut -d "\"" -f 2 | awk '{printf "%.0f",$1 * 100}' )
+        RELEVANT_LINES=$(echo "${COVERAGE_OUTPUT}" | cut -d "," -f${RELEVANT_LINES_COL} | jq -s 'add')
+        LINES_COVERED=$(echo "${COVERAGE_OUTPUT}" | cut -d "," -f${LINES_COVERED_COL} | jq -s 'add')
+        TOTAL_COVERAGE_PERCENTAGE=$(( (${LINES_COVERED} * 100) / ${RELEVANT_LINES} ))
     fi
-    echo ${PERCENTAGE} > ${PYTHON_CODE_COVERAGE_INFO}
-    cat ${PYTHON_CODE_COVERAGE_INFO}
+
+    echo $((TOTAL_COVERAGE_PERCENTAGE)) > ${RUBY_CODE_COVERAGE_INFO}
+    cat ${RUBY_CODE_COVERAGE_INFO}
     exit 0
 else
     echo "No coverage report was found"
