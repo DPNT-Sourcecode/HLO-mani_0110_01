@@ -8,22 +8,35 @@ set -o pipefail
 SCRIPT_CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CHALLENGE_ID=$1
-SCOVERAGE_REPORT_XML_FILE="${SCRIPT_CURRENT_DIR}/target/scala-2.12/scoverage-report/scoverage.xml"
-SCALA_CODE_COVERAGE_INFO="${SCRIPT_CURRENT_DIR}/coverage.tdl"
+COVERAGE_TEST_REPORT_XML_FILE="${SCRIPT_CURRENT_DIR}/coverage.xml"
+PYTHON_CODE_COVERAGE_INFO="${SCRIPT_CURRENT_DIR}/coverage.tdl"
 
-( cd ${SCRIPT_CURRENT_DIR} && sbt clean coverage tdlTests coverageReport || true )
+# Install dependencies
+pip install -r ${SCRIPT_CURRENT_DIR}/requirements.txt
 
-[ -e ${SCALA_CODE_COVERAGE_INFO} ] && rm ${SCALA_CODE_COVERAGE_INFO}
+# Prepare Python project
+function init_python_modules_in() {
+    _target_dir=$1
+    for dir in `find ${SCRIPT_CURRENT_DIR}/${_target_dir} -type d`; do touch ${dir}/__init__.py; done
+}
+init_python_modules_in lib
+init_python_modules_in test
 
-if [ -f "${SCOVERAGE_REPORT_XML_FILE}" ]; then
-    COVERAGE_OUTPUT=$(xmllint --xpath '//package[@name="befaster.solutions.'${CHALLENGE_ID}'"]/@statement-rate' ${SCOVERAGE_REPORT_XML_FILE} || true)
-    COVERAGE_PERCENT=$(( 0 ))
+# Compute coverage
+( cd ${SCRIPT_CURRENT_DIR} && PYTHONPATH=lib coverage run --source "lib/solutions" -m pytest -s test || true 1>&2 )
+( cd ${SCRIPT_CURRENT_DIR} && coverage xml || true 1>&2 )
+
+[ -e ${PYTHON_CODE_COVERAGE_INFO} ] && rm ${PYTHON_CODE_COVERAGE_INFO}
+
+# Extract coverage percentage for target challenge
+if [ -f "${COVERAGE_TEST_REPORT_XML_FILE}" ]; then
+    COVERAGE_OUTPUT=$(xmllint --xpath '//package[@name="lib.solutions.'${CHALLENGE_ID}'"]/@line-rate' ${COVERAGE_TEST_REPORT_XML_FILE} || true)
+    PERCENTAGE=$(( 0 ))
     if [[ ! -z "${COVERAGE_OUTPUT}" ]]; then
-        COVERAGE_PERCENT=$(echo ${COVERAGE_OUTPUT} | tr '".' ' ' | tr -s ' ' | awk '{printf "%.0f", $2}')
-        COVERAGE_PERCENT=$(( ${COVERAGE_PERCENT} + 0 ))
+        PERCENTAGE=$(echo ${COVERAGE_OUTPUT} | cut -d "\"" -f 2 | awk '{printf "%.0f",$1 * 100}' )
     fi
-    echo ${COVERAGE_PERCENT} > ${SCALA_CODE_COVERAGE_INFO}
-    cat ${SCALA_CODE_COVERAGE_INFO}
+    echo ${PERCENTAGE} > ${PYTHON_CODE_COVERAGE_INFO}
+    cat ${PYTHON_CODE_COVERAGE_INFO}
     exit 0
 else
     echo "No coverage report was found"
