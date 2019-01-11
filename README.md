@@ -1,20 +1,13 @@
-# tdl-runner-fsharp
+# tdl-warmup-python
 
-The F# (.Net) challenge runner
 
 ## 1. Requirements
 
-IDE
-- `Microsoft Visual Studio 2015`
-- `Microsoft Visual Studio 2017`
-- `JetBrains Rider`
-
-.NET Framework
-- `4.5`
+- `Python 2.7`
+- `pip`
 
 ## 2. How to start
 
-- Run `nuget restore befaster.sln`
-- Open solution `befaster.sln`
-- In solution open `BeFaster.App/SendCommandToServer.fs`
+- Install dependencies `pip install -r requirements.txt`
+- Open `lib/send_command_to_server.py`
 - Read the comments as documentation, they will guide through the rest of the setup

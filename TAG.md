@@ -1,10 +1,7 @@
 # How to update and release new client library
 
-Change library version in:
-- src/BeFaster.App/BeFaster.App.fsproj
-- src/BeFaster.App/packages.config
-- src/BeFaster.Runner/packages.config
-- src/BeFaster.Runner/BeFaster.Runner.csproj
+Change library version is:
+- `requirements.txt`
 
 Runner version = Client version + Runner patch
 Example:
